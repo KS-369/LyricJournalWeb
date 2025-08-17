@@ -1,6 +1,6 @@
-# LyricJournalWeb
+# LyricJournal 🎵
 
-A simple, elegant web application for saving and organizing your favourite song lyrics with personal notes.
+A simple, elegant web application for saving and organizing your favorite song lyrics with personal notes.
 
 ## Features
 
@@ -17,7 +17,11 @@ A simple, elegant web application for saving and organizing your favourite song 
 - **Database**: File-based JSON storage
 - **Styling**: Custom CSS with gradients and animations
 
-## Installation
+## Live Demo
+
+Visit the live application: **[https://lyricjournalweb.onrender.com](https://lyricjournalweb.onrender.com)**
+
+## Local Installation
 
 1. Clone the repository:
 ```bash
@@ -74,15 +78,3 @@ LyricJournalWeb/
 - JWT token authentication
 - Input validation and sanitization
 - XSS prevention through HTML escaping
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
