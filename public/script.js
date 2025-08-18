@@ -4,6 +4,13 @@ let authToken = null;
 let lyrics = [];
 let filteredLyrics = [];
 
+// Predefined tag categories
+const PREDEFINED_TAGS = {
+    mood: ['Happy', 'Sad', 'Energetic', 'Calm', 'Romantic', 'Melancholy', 'Uplifting', 'Nostalgic'],
+    genre: ['Pop', 'Rock', 'Hip-Hop', 'Country', 'Jazz', 'Classical', 'Electronic', 'Folk', 'R&B', 'Alternative'],
+    theme: ['Love', 'Friendship', 'Life', 'Dreams', 'Hope', 'Loss', 'Growth', 'Memories', 'Freedom', 'Journey']
+};
+
 // API base URL - will work in both development and production
 const API_BASE = window.location.origin;
 
@@ -18,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentUser = username;
         showMainApp();
         loadLyrics();
+        initializeTagSelector();
     } else {
         showAuthForm();
     }
@@ -25,6 +33,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup event listeners
     setupEventListeners();
 });
+
+// Initialize tag selector
+function initializeTagSelector() {
+    const container = document.getElementById('tag-selector-container');
+    if (container && !container.hasChildNodes()) {
+        container.appendChild(createTagSelector());
+    }
+}
 
 // Event listeners
 function setupEventListeners() {
@@ -178,6 +194,7 @@ function showMainApp() {
     document.getElementById('auth-container').style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.getElementById('username-display').textContent = `Hello, ${currentUser}!`;
+    initializeTagSelector();
 }
 
 function showLoading(show) {
@@ -252,6 +269,178 @@ function switchTab(tabName) {
     }
 }
 
+// Tag functions
+function createTagSelector() {
+    const tagSelector = document.createElement('div');
+    tagSelector.className = 'tag-selector';
+    
+    let html = '<div class="tag-categories">';
+    
+    Object.keys(PREDEFINED_TAGS).forEach(category => {
+        html += `
+            <div class="tag-category">
+                <h4>${category.charAt(0).toUpperCase() + category.slice(1)}</h4>
+                <div class="tag-options">
+        `;
+        
+        PREDEFINED_TAGS[category].forEach(tag => {
+            html += `
+                <span class="tag-option" onclick="toggleTagSelection(this, '${tag}')">${tag}</span>
+            `;
+        });
+        
+        html += '</div></div>';
+    });
+    
+    html += `
+        </div>
+        <div class="custom-tag-input">
+            <input type="text" id="custom-tag-input" placeholder="Add custom tag...">
+            <button type="button" onclick="addCustomTag()">Add</button>
+        </div>
+        <div id="selected-tags" class="selected-tags">
+            <h4>Selected Tags:</h4>
+            <div class="selected-tags-list"></div>
+        </div>
+    `;
+    
+    tagSelector.innerHTML = html;
+    return tagSelector;
+}
+
+function toggleTagSelection(element, tagName) {
+    element.classList.toggle('selected');
+    updateSelectedTagsDisplay();
+}
+
+function addCustomTag() {
+    const input = document.getElementById('custom-tag-input');
+    const tagText = input.value.trim();
+    
+    if (!tagText) return;
+    
+    // Check if tag already exists
+    const existingTags = document.querySelectorAll('.tag-option');
+    for (let tag of existingTags) {
+        if (tag.textContent.toLowerCase() === tagText.toLowerCase()) {
+            showError('Tag already exists');
+            return;
+        }
+    }
+    
+    // Add custom tag
+    const customTagsDiv = document.querySelector('.custom-tag-input');
+    const newTag = document.createElement('span');
+    newTag.className = 'tag-option custom-tag selected';
+    newTag.textContent = tagText;
+    newTag.onclick = () => toggleTagSelection(newTag, tagText);
+    
+    customTagsDiv.parentNode.insertBefore(newTag, customTagsDiv);
+    input.value = '';
+    updateSelectedTagsDisplay();
+}
+
+function updateSelectedTagsDisplay() {
+    const selectedTags = Array.from(document.querySelectorAll('.tag-option.selected')).map(el => el.textContent);
+    const display = document.querySelector('.selected-tags-list');
+    
+    if (selectedTags.length === 0) {
+        display.innerHTML = '<span class="no-tags">No tags selected</span>';
+    } else {
+        display.innerHTML = selectedTags.map(tag => 
+            `<span class="selected-tag">${escapeHtml(tag)} <span onclick="removeSelectedTag('${tag}')" class="remove-tag">×</span></span>`
+        ).join('');
+    }
+}
+
+function removeSelectedTag(tagName) {
+    const tagElements = document.querySelectorAll('.tag-option');
+    tagElements.forEach(el => {
+        if (el.textContent === tagName) {
+            el.classList.remove('selected');
+        }
+    });
+    updateSelectedTagsDisplay();
+}
+
+function getSelectedTags() {
+    return Array.from(document.querySelectorAll('.tag-option.selected')).map(el => el.textContent);
+}
+
+function setSelectedTags(tags) {
+    // Clear all selections
+    document.querySelectorAll('.tag-option').forEach(el => el.classList.remove('selected'));
+    
+    tags.forEach(tag => {
+        const existingTag = Array.from(document.querySelectorAll('.tag-option')).find(el => el.textContent === tag);
+        if (existingTag) {
+            existingTag.classList.add('selected');
+        } else {
+            // Create custom tag if it doesn't exist
+            const customTagsDiv = document.querySelector('.custom-tag-input');
+            const newTag = document.createElement('span');
+            newTag.className = 'tag-option custom-tag selected';
+            newTag.textContent = tag;
+            newTag.onclick = () => toggleTagSelection(newTag, tag);
+            customTagsDiv.parentNode.insertBefore(newTag, customTagsDiv);
+        }
+    });
+    
+    updateSelectedTagsDisplay();
+}
+
+// Filter functions
+function createTagFilters() {
+    const allTags = new Set();
+    lyrics.forEach(lyric => {
+        if (lyric.tags) {
+            lyric.tags.forEach(tag => allTags.add(tag));
+        }
+    });
+    
+    if (allTags.size === 0) return '';
+    
+    const sortedTags = Array.from(allTags).sort();
+    
+    return `
+        <div class="tag-filters">
+            <h4>Filter by Tags:</h4>
+            <div class="filter-tags">
+                ${sortedTags.map(tag => 
+                    `<span class="filter-tag" onclick="toggleTagFilter('${tag}')">${escapeHtml(tag)}</span>`
+                ).join('')}
+            </div>
+            <button class="btn btn-small" onclick="clearTagFilters()">Clear Filters</button>
+        </div>
+    `;
+}
+
+function toggleTagFilter(tagName) {
+    const filterTag = event.target;
+    filterTag.classList.toggle('active');
+    applyTagFilters();
+}
+
+function clearTagFilters() {
+    document.querySelectorAll('.filter-tag.active').forEach(tag => tag.classList.remove('active'));
+    applyTagFilters();
+}
+
+function applyTagFilters() {
+    const activeFilters = Array.from(document.querySelectorAll('.filter-tag.active')).map(el => el.textContent);
+    
+    if (activeFilters.length === 0) {
+        filteredLyrics = lyrics;
+    } else {
+        filteredLyrics = lyrics.filter(lyric => {
+            if (!lyric.tags || lyric.tags.length === 0) return false;
+            return activeFilters.some(filter => lyric.tags.includes(filter));
+        });
+    }
+    
+    displayLyrics();
+}
+
 // Lyric functions
 async function loadLyrics() {
     try {
@@ -281,6 +470,7 @@ async function addLyric(event) {
     const artist = document.getElementById('artist').value.trim();
     const lyricText = document.getElementById('lyric-text').value.trim();
     const note = document.getElementById('note').value.trim();
+    const tags = getSelectedTags();
     
     if (!title || !artist || !lyricText) {
         showError('Please fill in Song Title, Artist, and Lyric Text fields.');
@@ -296,7 +486,7 @@ async function addLyric(event) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${authToken}`
             },
-            body: JSON.stringify({ title, artist, lyricText, note })
+            body: JSON.stringify({ title, artist, lyricText, note, tags })
         });
         
         if (response.ok) {
@@ -321,6 +511,14 @@ async function addLyric(event) {
 
 function clearForm() {
     document.getElementById('lyric-form').reset();
+    
+    // Clear tag selections
+    document.querySelectorAll('.tag-option.selected').forEach(tag => tag.classList.remove('selected'));
+    
+    // Remove custom tags
+    document.querySelectorAll('.custom-tag').forEach(tag => tag.remove());
+    
+    updateSelectedTagsDisplay();
     document.getElementById('song-title').focus();
 }
 
@@ -336,7 +534,8 @@ function searchLyrics() {
         lyric.title.toLowerCase().includes(query) ||
         lyric.artist.toLowerCase().includes(query) ||
         lyric.lyricText.toLowerCase().includes(query) ||
-        (lyric.note && lyric.note.toLowerCase().includes(query))
+        (lyric.note && lyric.note.toLowerCase().includes(query)) ||
+        (lyric.tags && lyric.tags.some(tag => tag.toLowerCase().includes(query)))
     );
     
     displayLyrics();
@@ -344,6 +543,7 @@ function searchLyrics() {
 
 function showAllLyrics() {
     document.getElementById('search-input').value = '';
+    clearTagFilters();
     filteredLyrics = lyrics;
     displayLyrics();
 }
@@ -351,93 +551,166 @@ function showAllLyrics() {
 function displayLyrics() {
     const container = document.getElementById('lyrics-container');
     
+    // Add tag filters if we have lyrics
+    const tagFiltersHTML = lyrics.length > 0 ? createTagFilters() : '';
+    
     if (filteredLyrics.length === 0) {
         container.innerHTML = `
+            ${tagFiltersHTML}
             <div class="empty-state">
                 <h3>No lyrics found</h3>
-                <p>${lyrics.length === 0 ? 'Start by adding your first lyric!' : 'Try a different search term.'}</p>
+                <p>${lyrics.length === 0 ? 'Start by adding your first lyric!' : 'Try a different search term or clear the filters.'}</p>
             </div>
         `;
         return;
     }
     
-    container.innerHTML = filteredLyrics.map(lyric => `
-        <div class="lyric-entry">
-            <div class="lyric-header">
-                <div>
-                    <div class="lyric-title">${escapeHtml(lyric.title)}</div>
-                    <div class="lyric-artist">by ${escapeHtml(lyric.artist)}</div>
+    container.innerHTML = `
+        ${tagFiltersHTML}
+        <div class="lyrics-list">
+            ${filteredLyrics.map(lyric => `
+                <div class="lyric-entry">
+                    <div class="lyric-header">
+                        <div>
+                            <div class="lyric-title">${escapeHtml(lyric.title)}</div>
+                            <div class="lyric-artist">by ${escapeHtml(lyric.artist)}</div>
+                        </div>
+                        <div class="lyric-actions">
+                            <button class="btn btn-primary btn-small" onclick="editLyric(${lyric.id})">Edit</button>
+                            <button class="btn btn-secondary btn-small" onclick="deleteLyric(${lyric.id})">Delete</button>
+                        </div>
+                    </div>
+                    <div class="lyric-text">"${escapeHtml(lyric.lyricText)}"</div>
+                    ${lyric.note ? `<div class="lyric-note"><strong>Note:</strong> ${escapeHtml(lyric.note)}</div>` : ''}
+                    ${lyric.tags && lyric.tags.length > 0 ? `
+                        <div class="lyric-tags">
+                            ${lyric.tags.map(tag => `<span class="lyric-tag">${escapeHtml(tag)}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    <div class="lyric-date">Added: ${lyric.dateAdded}</div>
                 </div>
-                <div class="lyric-actions">
-                    <button class="btn btn-primary btn-small" onclick="editLyric(${lyric.id})">Edit</button>
-                    <button class="btn btn-secondary btn-small" onclick="deleteLyric(${lyric.id})">Delete</button>
-                </div>
-            </div>
-            <div class="lyric-text">"${escapeHtml(lyric.lyricText)}"</div>
-            ${lyric.note ? `<div class="lyric-note"><strong>Note:</strong> ${escapeHtml(lyric.note)}</div>` : ''}
-            <div class="lyric-date">Added: ${lyric.dateAdded}</div>
+            `).join('')}
         </div>
-    `).join('');
+    `;
 }
 
 async function editLyric(id) {
     const lyric = lyrics.find(l => l.id === id);
     if (!lyric) return;
     
-    const newTitle = prompt('Song Title:', lyric.title);
-    if (newTitle === null) return;
+    // Create edit modal
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Edit Lyric</h3>
+                <button onclick="closeModal()" class="modal-close">×</button>
+            </div>
+            <div class="modal-content">
+                <form id="edit-lyric-form">
+                    <div class="form-group">
+                        <label for="edit-song-title">Song Title</label>
+                        <input type="text" id="edit-song-title" value="${escapeHtml(lyric.title)}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-artist">Artist</label>
+                        <input type="text" id="edit-artist" value="${escapeHtml(lyric.artist)}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-lyric-text">Lyric Text</label>
+                        <textarea id="edit-lyric-text" required>${escapeHtml(lyric.lyricText)}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-note">Your Note (Optional)</label>
+                        <textarea id="edit-note">${escapeHtml(lyric.note || '')}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Tags</label>
+                        <div id="edit-tag-selector"></div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
     
-    const newArtist = prompt('Artist:', lyric.artist);
-    if (newArtist === null) return;
+    document.body.appendChild(modal);
     
-    const newLyricText = prompt('Lyric Text:', lyric.lyricText);
-    if (newLyricText === null) return;
+    // Add tag selector to modal
+    const editTagSelector = document.getElementById('edit-tag-selector');
+    editTagSelector.appendChild(createTagSelector());
     
-    const newNote = prompt('Note (optional):', lyric.note || '');
-    if (newNote === null) return;
-    
-    if (!newTitle.trim() || !newArtist.trim() || !newLyricText.trim()) {
-        showError('Please fill in Song Title, Artist, and Lyric Text fields.');
-        return;
+    // Set existing tags
+    if (lyric.tags) {
+        setSelectedTags(lyric.tags);
     }
     
-    showLoading(true);
-    
-    try {
-        const response = await fetch(`${API_BASE}/api/lyrics/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify({
-                title: newTitle.trim(),
-                artist: newArtist.trim(),
-                lyricText: newLyricText.trim(),
-                note: newNote.trim()
-            })
-        });
+    // Handle form submission
+    document.getElementById('edit-lyric-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        if (response.ok) {
-            const updatedLyric = await response.json();
-            const index = lyrics.findIndex(l => l.id === id);
-            if (index !== -1) {
-                lyrics[index] = updatedLyric;
-                filteredLyrics = lyrics.filter(l => 
-                    filteredLyrics.some(fl => fl.id === l.id)
-                );
-                displayLyrics();
-                showSuccess('Lyric updated successfully!');
-            }
-        } else {
-            const error = await response.json();
-            showError(error.error || 'Failed to update lyric');
+        const newTitle = document.getElementById('edit-song-title').value.trim();
+        const newArtist = document.getElementById('edit-artist').value.trim();
+        const newLyricText = document.getElementById('edit-lyric-text').value.trim();
+        const newNote = document.getElementById('edit-note').value.trim();
+        const newTags = getSelectedTags();
+        
+        if (!newTitle || !newArtist || !newLyricText) {
+            showError('Please fill in Song Title, Artist, and Lyric Text fields.');
+            return;
         }
-    } catch (error) {
-        console.error('Edit lyric error:', error);
-        showError('Connection error. Please try again.');
-    } finally {
-        showLoading(false);
+        
+        showLoading(true);
+        
+        try {
+            const response = await fetch(`${API_BASE}/api/lyrics/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    title: newTitle,
+                    artist: newArtist,
+                    lyricText: newLyricText,
+                    note: newNote,
+                    tags: newTags
+                })
+            });
+            
+            if (response.ok) {
+                const updatedLyric = await response.json();
+                const index = lyrics.findIndex(l => l.id === id);
+                if (index !== -1) {
+                    lyrics[index] = updatedLyric;
+                    filteredLyrics = lyrics.filter(l => 
+                        filteredLyrics.some(fl => fl.id === l.id)
+                    );
+                    displayLyrics();
+                    showSuccess('Lyric updated successfully!');
+                    closeModal();
+                }
+            } else {
+                const error = await response.json();
+                showError(error.error || 'Failed to update lyric');
+            }
+        } catch (error) {
+            console.error('Edit lyric error:', error);
+            showError('Connection error. Please try again.');
+        } finally {
+            showLoading(false);
+        }
+    });
+}
+
+function closeModal() {
+    const modal = document.querySelector('.modal-overlay');
+    if (modal) {
+        modal.remove();
     }
 }
 
@@ -481,8 +754,3 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-
-
-
-
-
