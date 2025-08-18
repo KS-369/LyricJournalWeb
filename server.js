@@ -76,6 +76,20 @@ function authenticateToken(req, res, next) {
     });
 }
 
+// Input validation and sanitization
+function validateAndSanitizeInput(input) {
+    if (typeof input !== 'string') return '';
+    return input.trim().substring(0, 5000); // Limit length to prevent abuse
+}
+
+function validateTags(tags) {
+    if (!Array.isArray(tags)) return [];
+    return tags
+        .filter(tag => typeof tag === 'string' && tag.trim().length > 0)
+        .map(tag => validateAndSanitizeInput(tag))
+        .slice(0, 20); // Limit to 20 tags max
+}
+
 // Routes
 
 // Register
@@ -154,7 +168,7 @@ app.get('/api/lyrics', authenticateToken, async (req, res) => {
 // Add lyric
 app.post('/api/lyrics', authenticateToken, async (req, res) => {
     try {
-        const { title, artist, lyricText, note } = req.body;
+        const { title, artist, lyricText, note, tags } = req.body;
         
         if (!title || !artist || !lyricText) {
             return res.status(400).json({ error: 'Title, artist, and lyric text required' });
@@ -162,10 +176,11 @@ app.post('/api/lyrics', authenticateToken, async (req, res) => {
 
         const newLyric = {
             id: Date.now(),
-            title: title.trim(),
-            artist: artist.trim(),
-            lyricText: lyricText.trim(),
-            note: note?.trim() || '',
+            title: validateAndSanitizeInput(title),
+            artist: validateAndSanitizeInput(artist),
+            lyricText: validateAndSanitizeInput(lyricText),
+            note: validateAndSanitizeInput(note || ''),
+            tags: validateTags(tags || []),
             dateAdded: new Date().toISOString().split('T')[0]
         };
 
@@ -186,7 +201,7 @@ app.post('/api/lyrics', authenticateToken, async (req, res) => {
 // Update lyric
 app.put('/api/lyrics/:id', authenticateToken, async (req, res) => {
     try {
-        const { title, artist, lyricText, note } = req.body;
+        const { title, artist, lyricText, note, tags } = req.body;
         const lyricId = parseInt(req.params.id);
         
         if (!title || !artist || !lyricText) {
@@ -203,10 +218,11 @@ app.put('/api/lyrics/:id', authenticateToken, async (req, res) => {
 
         userLyrics[lyricIndex] = {
             ...userLyrics[lyricIndex],
-            title: title.trim(),
-            artist: artist.trim(),
-            lyricText: lyricText.trim(),
-            note: note?.trim() || ''
+            title: validateAndSanitizeInput(title),
+            artist: validateAndSanitizeInput(artist),
+            lyricText: validateAndSanitizeInput(lyricText),
+            note: validateAndSanitizeInput(note || ''),
+            tags: validateTags(tags || [])
         };
 
         await writeDatabase(db);
@@ -235,6 +251,34 @@ app.delete('/api/lyrics/:id', authenticateToken, async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error('Delete lyric error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get user's tags (for analytics/suggestions)
+app.get('/api/tags', authenticateToken, async (req, res) => {
+    try {
+        const db = await readDatabase();
+        const userLyrics = db.lyrics[req.user.username] || [];
+        
+        // Collect all tags and count their usage
+        const tagCounts = {};
+        userLyrics.forEach(lyric => {
+            if (lyric.tags) {
+                lyric.tags.forEach(tag => {
+                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                });
+            }
+        });
+        
+        // Sort tags by usage count
+        const sortedTags = Object.entries(tagCounts)
+            .sort(([,a], [,b]) => b - a)
+            .map(([tag, count]) => ({ tag, count }));
+        
+        res.json(sortedTags);
+    } catch (error) {
+        console.error('Get tags error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -273,5 +317,4 @@ initDatabase().then(() => {
     console.error('Failed to start server:', error);
     process.exit(1);
 });
-
 
