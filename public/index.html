@@ -99,6 +99,11 @@
                     <textarea id="note" placeholder="Add your personal thoughts about this lyric..."></textarea>
                 </div>
                 
+                <div class="form-group">
+                    <label>Tags (Optional)</label>
+                    <div id="tag-selector-container"></div>
+                </div>
+                
                 <button type="submit" class="btn btn-primary">Add Lyric</button>
                 <button type="button" class="btn btn-secondary" onclick="clearForm()">Clear All</button>
             </form>
@@ -106,7 +111,7 @@
 
         <div id="view-tab" class="tab-content">
             <div class="search-bar">
-                <input type="text" id="search-input" placeholder="Search lyrics, songs, or artists...">
+                <input type="text" id="search-input" placeholder="Search lyrics, songs, artists, or tags...">
                 <button class="btn btn-primary" onclick="searchLyrics()">Search</button>
                 <button class="btn btn-secondary" onclick="showAllLyrics()">Show All</button>
             </div>
@@ -122,6 +127,16 @@
         <div class="loading-spinner"></div>
     </div>
 
+    <script>
+        // Initialize tag selector when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add tag selector to the add form
+            const tagContainer = document.getElementById('tag-selector-container');
+            if (tagContainer) {
+                // We'll populate this when the main script loads
+            }
+        });
+    </script>
     <script src="script.js"></script>
 </body>
 </html>
