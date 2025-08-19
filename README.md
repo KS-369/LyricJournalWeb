@@ -1,6 +1,6 @@
 # LyricJournal 🎵
 
-A simple, elegant web application for saving and organizing your favorite song lyrics with personal notes and tags.
+A simple, elegant web application for saving and organizing your favourite song lyrics with personal notes and tags.
 
 ## Features
 
@@ -94,10 +94,10 @@ I was constantly screenshotting lyrics and saving them in random notes apps with
 
 ### How I Made This Project
 
-1. **Planning** - Designed a clean, mobile-first interface with warm colors
+1. **Planning** - Designed a clean, mobile-first interface with warm colours
 2. **Backend** - Built Node.js/Express API with JWT authentication and file-based storage
 3. **Frontend** - Used vanilla JavaScript and custom CSS for performance
-4. **Features** - Started basic (CRUD), then added search, tags, and filtering
+4. **Features** - Started basic, then added search, tags, and filtering
 5. **Deployment** - Deployed to Render with mobile optimization
 
 ### What I Struggled With and Learned
@@ -108,7 +108,7 @@ I was constantly screenshotting lyrics and saving them in random notes apps with
 - **State Management** - Managing app state without a framework
 
 **Key Learnings:**
-- Start simple, then enhance - basic CRUD first, features second
+- Start simple, then enhance - basic first, extra features second
 - Mobile-first design is essential for apps people use on-the-go
 - Vanilla JavaScript teaches you fundamentals that frameworks abstract away
 - User authentication adds significant complexity but is worth it for privacy
